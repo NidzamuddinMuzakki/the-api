@@ -13,7 +13,7 @@ func DeserializeUser(c *fiber.Ctx) error {
 	var tokenString string
 	authorization := c.Get("Authorization")
 	url := c.Request().URI()
-	if strings.Contains(url.String(), "/token/refresh") || strings.Contains(url.String(), "/token") {
+	if strings.Contains(url.String(), "/token/refresh") || strings.Contains(url.String(), "/token") || strings.Contains(url.String(), "/register") {
 		return c.Next()
 	}
 	if strings.HasPrefix(authorization, "Bearer ") {
