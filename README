@@ -1,0 +1,2 @@
+run docker compose up --build
+user : 1 username zaki@gmail.com password nidzam
