@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/NidzamuddinMuzakki/the-api/configs"
 	"github.com/NidzamuddinMuzakki/the-api/requests"
@@ -10,6 +12,7 @@ import (
 	"github.com/NidzamuddinMuzakki/the-api/utils"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-playground/validator/v10"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -55,6 +58,7 @@ func GetToken(c *fiber.Ctx) error {
 		dataErr.Message = "Unauthorized"
 		return c.Status(401).JSON(dataErr)
 	}
+
 	tokens, err := configs.GenerateTokenPair(user.Username)
 	if err != nil {
 		dataErr.Status = 401
@@ -99,12 +103,17 @@ func RefreshToken(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(401).JSON("unauthorized")
+		return c.Status(401).JSON(err.Error() + "unauthorized")
 	}
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		// Get the user record from database or
 		// run through your business logic to verify if the user can log in
-		if int(claims["sub"].(float64)) == 1 && claims["name"] != nil {
+		if int(claims["sub"].(float64)) == 1 && claims["name"] != nil && claims["uuid"] != nil {
+			ss, errS := configs.RedisClient.Get(context.TODO(), claims["uuid"].(string)).Result()
+			// fmt.Println(ss, errS, ss == "", ss != "", errS != nil, !(ss == ""))
+			if errS != redis.Nil || ss != "" {
+				return c.Status(401).JSON("refresh token in black list data")
+			}
 
 			newTokenPair, err := configs.GenerateTokenPair(claims["name"].(string))
 			if err != nil {
@@ -118,6 +127,11 @@ func RefreshToken(c *fiber.Ctx) error {
 				RefreshToken: newTokenPair["refreshtoken"],
 			}
 			data.Data = token
+			str, _ := configs.RedisClient.Set(context.TODO(), claims["uuid"].(string), claims["uuid"].(string), time.Hour*24).Result()
+
+			if str != "OK" {
+				return c.Status(401).JSON("unauthorized")
+			}
 			return c.Status(200).JSON(data)
 		}
 

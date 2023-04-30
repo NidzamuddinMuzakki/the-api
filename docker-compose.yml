@@ -7,6 +7,7 @@ services:
           MYSQL_DATABASE: 'the-api'
           MYSQL_USER: 'root'
           MYSQL_PASSWORD: '123'
+          REDIS_URL: 'redis:6379'
         ports:        
           - "8080:8080"
         expose:
@@ -14,6 +15,13 @@ services:
         depends_on:
           - mysql
         restart: always
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
   mysql:
     image: mysql:5.7
     container_name: 'mysql-nidzam'
@@ -26,3 +34,5 @@ services:
     restart: always
     volumes:     
       - ./db/the-api.sql:/docker-entrypoint-initdb.d/init.sql
+volumes:
+    redis_data:

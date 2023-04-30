@@ -15,6 +15,7 @@ func main() {
 	app := fiber.New()
 
 	configs.Connect()
+	configs.ConnectRedis()
 	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",

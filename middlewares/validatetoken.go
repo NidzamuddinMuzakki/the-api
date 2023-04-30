@@ -1,10 +1,13 @@
 package middlewares
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/NidzamuddinMuzakki/the-api/configs"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -39,12 +42,15 @@ func DeserializeUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate token: %v", err)})
 	}
 
-	_, ok := tokenByte.Claims.(jwt.MapClaims)
+	claims, ok := tokenByte.Claims.(jwt.MapClaims)
 	if !ok || !tokenByte.Valid {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid token claim"})
 
 	}
-
+	ss, err := configs.RedisClient.Get(context.TODO(), claims["uuid"].(string)).Result()
+	if err != redis.Nil && ss != "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "your token in black list data"})
+	}
 	// var user models.User
 	// initializers.DB.First(&user, "id = ?", fmt.Sprint(claims["sub"]))
 
