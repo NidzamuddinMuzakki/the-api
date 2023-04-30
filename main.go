@@ -8,12 +8,14 @@ import (
 	"github.com/NidzamuddinMuzakki/the-api/middlewares"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
 func main() {
 	app := fiber.New()
 
 	configs.Connect()
+	app.Use(recover.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowHeaders: "Origin, Content-Type, Accept",
@@ -22,7 +24,7 @@ func main() {
 	app.Post("/api/api/token", controllers.GetToken)
 	app.Post("/api/api/token/refresh", controllers.RefreshToken)
 	app.Post("/api/register", controllers.AddUser)
-	app.Post("/api/article", controllers.AddArticle)
+	// app.Post("/api/article", controllers.AddArticle)
 	app.Get("/api/article", controllers.GetArticles)
 	app.Get("/api/article/:id", controllers.GetArticle)
 

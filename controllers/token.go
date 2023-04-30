@@ -1,12 +1,15 @@
 package controllers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/NidzamuddinMuzakki/the-api/configs"
-	"github.com/NidzamuddinMuzakki/the-api/models"
+	"github.com/NidzamuddinMuzakki/the-api/requests"
 	"github.com/NidzamuddinMuzakki/the-api/responses"
+	"github.com/NidzamuddinMuzakki/the-api/utils"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,36 +20,57 @@ type Token struct {
 }
 
 func GetToken(c *fiber.Ctx) error {
-	var user models.User
-	data := responses.UserResponse{
-		Status: fiber.ErrBadRequest.Code,
-
-		Data: nil,
+	var user requests.LoginRequest
+	dataErr := responses.ErrResponse{
+		Status:  200,
+		Message: "success",
 	}
 	if err := c.BodyParser(&user); err != nil {
-		data.Message = err.Error()
-		return c.Status(fiber.ErrBadRequest.Code).JSON(data)
+		dataErr.Status = fiber.ErrBadRequest.Code
+		dataErr.Message = "bad request"
+		dataErr.Error = err.Error()
+		return c.Status(fiber.ErrBadRequest.Code).JSON(dataErr)
 	}
-	result := configs.Database.Find(&user, "username=? and password=?", user.Username, user.Password)
+	validate := validator.New()
+	err := validate.Struct(user)
+	if err != nil {
+		fmt.Println(err.Error())
+		var ve validator.ValidationErrors
+		if errors.As(err, &ve) {
+
+			out := make([]responses.ApiError, len(ve))
+			for i, fe := range ve {
+				out[i] = responses.ApiError{Field: fe.Field(), Msg: utils.MsgForTag(fe.Tag())}
+			}
+			dataErr.Status = fiber.ErrBadRequest.Code
+			dataErr.Message = "bad request"
+			dataErr.Error = out
+		}
+		return c.Status(fiber.ErrBadRequest.Code).JSON(dataErr)
+	}
+	result := configs.Database.Table("users").Find(&user, "username=? and password=?", user.Username, user.Password)
 
 	if result.RowsAffected == 0 {
-		data.Status = 401
-		data.Message = "Unauthorized"
-		return c.Status(401).JSON(data)
+		dataErr.Status = 401
+		dataErr.Message = "Unauthorized"
+		return c.Status(401).JSON(dataErr)
 	}
 	tokens, err := configs.GenerateTokenPair(user.Username)
 	if err != nil {
-		data.Status = 401
-		data.Message = "Unauthorized"
-		return c.Status(401).JSON(data)
+		dataErr.Status = 401
+		dataErr.Message = "Unauthorized"
+		dataErr.Error = err.Error()
+		return c.Status(401).JSON(dataErr)
 	}
-	data.Status = 200
-	data.Message = "success"
 	token := Token{
 		Token:        tokens["token"],
 		RefreshToken: tokens["refreshtoken"],
 	}
-	data.Data = token
+	data := responses.UserResponse{
+		Status:  200,
+		Message: "success",
+		Data:    token,
+	}
 
 	return c.Status(200).JSON(data)
 }
